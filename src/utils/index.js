@@ -69,13 +69,13 @@ export function getMiningPoolLink(token0Address) {
   return `https://app.likeswap.org/#/like/ETH/${token0Address}`
 }
 
-export function getUniswapAppLink(linkVariable) {
-  let baseUniswapUrl = 'https://app.likeswap.org/#/like'
+export function getLikeswapAppLink(linkVariable) {
+  let baseLikeswapUrl = 'https://app.likeswap.org/#/like'
   if (!linkVariable) {
-    return baseUniswapUrl
+    return baseLikeswapUrl
   }
 
-  return `${baseUniswapUrl}/ETH/${linkVariable}`
+  return `${baseLikeswapUrl}/ETH/${linkVariable}`
 }
 
 export function localNumber(val) {

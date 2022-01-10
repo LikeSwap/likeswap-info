@@ -17,8 +17,8 @@ const theme = (darkMode, color) => ({
   panelColor: darkMode ? 'rgba(255, 255, 255, 0)' : 'rgba(255, 255, 255, 0)',
   backgroundColor: darkMode ? '#191326' : '#f5f3f3',
 
-  // uniswapPink: darkMode ? '#4FD8DE' : 'black',
-  uniswapPink: darkMode ? 'red' : 'black',
+  // likeswapPink: darkMode ? '#4FD8DE' : 'black',
+  likeswapPink: darkMode ? 'red' : 'black',
 
   concreteGray: darkMode ? '#292C2F' : '#fffdfa',
   inputBackground: darkMode ? '#1F1F1F' : '#fffdfa',

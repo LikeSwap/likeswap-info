@@ -1,4 +1,4 @@
-import { TokenList } from '@uniswap/token-lists'
+import { TokenList } from '@likeswap/token-lists'
 
 /**
  * Given a URI that may be ipfs, ipns, http, or https protocol, return the fetch-able http(s) URLs for the same content
