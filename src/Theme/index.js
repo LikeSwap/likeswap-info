@@ -15,17 +15,16 @@ const theme = (darkMode, color) => ({
   textColor: darkMode ? color : 'black',
 
   panelColor: darkMode ? 'rgba(255, 255, 255, 0)' : 'rgba(255, 255, 255, 0)',
-  backgroundColor: darkMode ? '#191326' : '#f5f3f3',
+  backgroundColor: darkMode ? '#212429' : '#F7F8FA',
 
-  // likeswapPink: darkMode ? '#4FD8DE' : 'black',
-  likeswapPink: darkMode ? 'red' : 'black',
+  likeswapPink: darkMode ? '#ff007a' : 'black',
 
-  concreteGray: darkMode ? '#292C2F' : '#fffdfa',
-  inputBackground: darkMode ? '#1F1F1F' : '#fffdfa',
+  concreteGray: darkMode ? '#292C2F' : '#FAFAFA',
+  inputBackground: darkMode ? '#1F1F1F' : '#FAFAFA',
   shadowColor: darkMode ? '#000' : '#2F80ED',
   mercuryGray: darkMode ? '#333333' : '#E1E1E1',
 
-  text1: darkMode ? '#fffdfa' : '#1F1F1F',
+  text1: darkMode ? '#FAFAFA' : '#1F1F1F',
   text2: darkMode ? '#C3C5CB' : '#565A69',
   text3: darkMode ? '#6C7284' : '#888D9B',
   text4: darkMode ? '#565A69' : '#C3C5CB',
@@ -35,7 +34,7 @@ const theme = (darkMode, color) => ({
   white: '#FFFFFF',
 
   // backgrounds / greys
-  bg1: darkMode ? '#212429' : '#fffdfa',
+  bg1: darkMode ? '#212429' : '#FAFAFA',
   bg2: darkMode ? '#2C2F36' : '#F7F8FA',
   bg3: darkMode ? '#40444F' : '#EDEEF2',
   bg4: darkMode ? '#565A69' : '#CED0D9',
@@ -49,17 +48,17 @@ const theme = (darkMode, color) => ({
   divider: darkMode ? 'rgba(43, 43, 43, 0.435)' : 'rgba(43, 43, 43, 0.035)',
 
   //primary colors
-  primary1: darkMode ? '#2172E5' : '#4FD8DE',
+  primary1: darkMode ? '#2172E5' : '#ff007a',
   primary2: darkMode ? '#3680E7' : '#FF8CC3',
   primary3: darkMode ? '#4D8FEA' : '#FF99C9',
   primary4: darkMode ? '#376bad70' : '#F6DDE8',
   primary5: darkMode ? '#153d6f70' : '#FDEAF1',
 
   // color text
-  primaryText1: darkMode ? '#6da8ff' : '#4FD8DE',
+  primaryText1: darkMode ? '#6da8ff' : '#ff007a',
 
   // secondary colors
-  secondary1: darkMode ? '#2172E5' : '#4FD8DE',
+  secondary1: darkMode ? '#2172E5' : '#ff007a',
   secondary2: darkMode ? '#17000b26' : '#F6DDE8',
   secondary3: darkMode ? '#17000b26' : '#FDEAF1',
 
@@ -70,10 +69,10 @@ const theme = (darkMode, color) => ({
   green1: '#27AE60',
   yellow1: '#FFE270',
   yellow2: '#F3841E',
-  link: '#12aab5',
+  link: '#2172E5',
   blue: '2f80ed',
 
-  background: darkMode ? 'black' : `radial-gradient(50% 50% at 50% 50%, #4FD8DE 30 0%, #fff 0%)`,
+  background: darkMode ? 'black' : `radial-gradient(50% 50% at 50% 50%, #ff007a30 0%, #fff 0%)`,
 })
 
 const TextWrapper = styled(Text)`
@@ -150,7 +149,7 @@ export const ThemedBackground = styled.div`
   position: absolute;
   top: 0px;
   left: 0px;
-  z-index: 9999;
+  /* z-index: ; */
 
   transform: translateY(-110vh);
 `
@@ -161,14 +160,14 @@ export const GlobalStyle = createGlobalStyle`
   @supports (font-variation-settings: normal) {
     html { font-family: 'Inter var', sans-serif; }
   }
-
+  
   html,
   body {
     margin: 0;
     padding: 0;
     width: 100%;
     height: 100%;
-    font-size: 14px;
+    font-size: 14px;    
     background-color: ${({ theme }) => theme.bg6};
   }
 
@@ -180,7 +179,7 @@ export const GlobalStyle = createGlobalStyle`
     }
   }
 
-
+  
 .three-line-legend {
 	width: 100%;
 	height: 70px;
@@ -215,7 +214,7 @@ export const GlobalStyle = createGlobalStyle`
 
 .tv-lightweight-charts{
   width: 100% !important;
-
+  
 
   & > * {
     width: 100% !important;

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import { withRouter } from 'react-router-dom'
 import { Box } from 'rebass'
 import styled from 'styled-components'
@@ -23,6 +23,8 @@ import { transparentize } from 'polished'
 import { CustomLink } from '../components/Link'
 
 import { PageWrapper, ContentWrapper } from '../components'
+import CheckBox from '../components/Checkbox'
+import QuestionHelper from '../components/QuestionHelper'
 
 const ListOptions = styled(AutoRow)`
   height: 40px;
@@ -55,7 +57,6 @@ function GlobalPage() {
   const below800 = useMedia('(max-width: 800px)')
 
   // scrolling refs
-
   useEffect(() => {
     document.querySelector('body').scrollTo({
       behavior: 'smooth',
@@ -63,13 +64,16 @@ function GlobalPage() {
     })
   }, [])
 
+  // for tracked data on pairs
+  const [useTracked, setUseTracked] = useState(true)
+
   return (
     <PageWrapper>
-      <ThemedBackground backgroundColor={transparentize(0.8, '#4FD8DE')} />
+      <ThemedBackground backgroundColor={transparentize(0.6, '#ff007a')} />
       <ContentWrapper>
         <div>
           <AutoColumn gap="24px" style={{ paddingBottom: below800 ? '0' : '24px' }}>
-            <TYPE.largeHeader>{below800 ? 'Analytics' : 'Likeswapswap Analytics'}</TYPE.largeHeader>
+            <TYPE.largeHeader>{below800 ? 'Likeswap Analytics' : 'Likeswap Analytics'}</TYPE.largeHeader>
             <Search />
             <GlobalStats />
           </AutoColumn>
@@ -85,9 +89,9 @@ function GlobalPage() {
                       </RowBetween>
                       <RowBetween align="flex-end">
                         <TYPE.main fontSize={'1.5rem'} lineHeight={1} fontWeight={600}>
-                          {formattedNum(oneDayVolumeUSD, true)}
+                          {oneDayVolumeUSD ? formattedNum(oneDayVolumeUSD, true) : '-'}
                         </TYPE.main>
-                        <TYPE.main fontSize={12}>{formattedPercent(volumeChangeUSD)}</TYPE.main>
+                        <TYPE.main fontSize={12}>{volumeChangeUSD ? formattedPercent(volumeChangeUSD) : '-'}</TYPE.main>
                       </RowBetween>
                     </AutoColumn>
                     <AutoColumn gap="20px">
@@ -97,9 +101,11 @@ function GlobalPage() {
                       </RowBetween>
                       <RowBetween align="flex-end">
                         <TYPE.main fontSize={'1.5rem'} lineHeight={1} fontWeight={600}>
-                          {formattedNum(totalLiquidityUSD, true)}
+                          {totalLiquidityUSD ? formattedNum(totalLiquidityUSD, true) : '-'}
                         </TYPE.main>
-                        <TYPE.main fontSize={12}>{formattedPercent(liquidityChangeUSD)}</TYPE.main>
+                        <TYPE.main fontSize={12}>
+                          {liquidityChangeUSD ? formattedPercent(liquidityChangeUSD) : '-'}
+                        </TYPE.main>
                       </RowBetween>
                     </AutoColumn>
                   </AutoColumn>
@@ -126,7 +132,9 @@ function GlobalPage() {
           )}
           <ListOptions gap="10px" style={{ marginTop: '2rem', marginBottom: '.5rem' }}>
             <RowBetween>
-              <TYPE.main fontSize={'1.125rem'}>Top Tokens</TYPE.main>
+              <TYPE.main fontSize={'1.125rem'} style={{ whiteSpace: 'nowrap' }}>
+                Top Tokens
+              </TYPE.main>
               <CustomLink to={'/tokens'}>See All</CustomLink>
             </RowBetween>
           </ListOptions>
@@ -135,14 +143,23 @@ function GlobalPage() {
           </Panel>
           <ListOptions gap="10px" style={{ marginTop: '2rem', marginBottom: '.5rem' }}>
             <RowBetween>
-              <TYPE.main fontSize={'1rem'}>Top Pairs</TYPE.main>
-              <CustomLink to={'/pairs'}>See All</CustomLink>
+              <TYPE.main fontSize={'1rem'} style={{ whiteSpace: 'nowrap' }}>
+                Top Pairs
+              </TYPE.main>
+              <AutoRow gap="4px" width="100%" justifyContent="flex-end">
+                <CheckBox
+                  checked={useTracked}
+                  setChecked={() => setUseTracked(!useTracked)}
+                  text={'Hide untracked pairs'}
+                />
+                <QuestionHelper text="USD amounts may be inaccurate in low liquiidty pairs or pairs without ETH or stablecoins." />
+                <CustomLink to={'/pairs'}>See All</CustomLink>
+              </AutoRow>
             </RowBetween>
           </ListOptions>
           <Panel style={{ marginTop: '6px', padding: '1.125rem 0 ' }}>
-            <PairList pairs={allPairs} />
+            <PairList pairs={allPairs} useTracked={useTracked} />
           </Panel>
-
           <span>
             <TYPE.main fontSize={'1.125rem'} style={{ marginTop: '2rem' }}>
               Transactions

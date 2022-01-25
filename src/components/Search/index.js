@@ -11,7 +11,7 @@ import { useAllPairData, usePairData } from '../../contexts/PairData'
 import DoubleTokenLogo from '../DoubleLogo'
 import { useMedia } from 'react-use'
 import { useAllPairsInLikeswap, useAllTokensInLikeswap } from '../../contexts/GlobalData'
-import { OVERVIEW_TOKEN_BLACKLIST, PAIR_BLACKLIST } from '../../constants'
+import { TOKEN_BLACKLIST, PAIR_BLACKLIST } from '../../constants'
 
 import { transparentize } from 'polished'
 import { client } from '../../apollo/client'
@@ -38,8 +38,7 @@ const Wrapper = styled.div`
   justify-content: flex-end;
   padding: 12px 16px;
   border-radius: 12px;
-  background: ${({ theme, small, open }) =>
-    small ? (open ? transparentize(0.4, theme.bg1) : 'none') : transparentize(0.4, theme.bg6)};
+  background: ${({ theme, small, open }) => (small ? (open ? theme.bg6 : 'none') : transparentize(0.4, theme.bg6))};
   border-bottom-right-radius: ${({ open }) => (open ? '0px' : '12px')};
   border-bottom-left-radius: ${({ open }) => (open ? '0px' : '12px')};
   z-index: 9999;
@@ -51,7 +50,7 @@ const Wrapper = styled.div`
       ? '0px 24px 32px rgba(0, 0, 0, 0.04), 0px 16px 24px rgba(0, 0, 0, 0.04), 0px 4px 8px rgba(0, 0, 0, 0.04), 0px 0px 1px rgba(0, 0, 0, 0.04) '
       : 'none'};
   @media screen and (max-width: 500px) {
-    background: ${({ theme }) => transparentize(0.4, theme.bg1)};
+    background: ${({ theme }) => theme.bg6};
     box-shadow: ${({ open }) =>
       !open
         ? '0px 24px 32px rgba(0, 0, 0, 0.04), 0px 16px 24px rgba(0, 0, 0, 0.04), 0px 4px 8px rgba(0, 0, 0, 0.04), 0px 0px 1px rgba(0, 0, 0, 0.04) '
@@ -274,12 +273,6 @@ export const Search = ({ small = false }) => {
     return uniqueTokens
       ? uniqueTokens
           .sort((a, b) => {
-            if (OVERVIEW_TOKEN_BLACKLIST.includes(a.id)) {
-              return 1
-            }
-            if (OVERVIEW_TOKEN_BLACKLIST.includes(b.id)) {
-              return -1
-            }
             const tokenA = allTokenData[a.id]
             const tokenB = allTokenData[b.id]
             if (tokenA?.oneDayVolumeUSD && tokenB?.oneDayVolumeUSD) {
@@ -294,7 +287,7 @@ export const Search = ({ small = false }) => {
             return 1
           })
           .filter((token) => {
-            if (OVERVIEW_TOKEN_BLACKLIST.includes(token.id)) {
+            if (TOKEN_BLACKLIST.includes(token.id)) {
               return false
             }
             const regexMatches = Object.keys(token).map((tokenEntryKey) => {
@@ -437,10 +430,10 @@ export const Search = ({ small = false }) => {
               : below410
               ? 'Search...'
               : below470
-              ? 'Search Likeswapswap...'
+              ? 'Search Likeswap...'
               : below700
               ? 'Search pairs and tokens...'
-              : 'Search Likeswapswap pairs and tokens...'
+              : 'Search Likeswap pairs and tokens...'
           }
           value={value}
           onChange={(e) => {

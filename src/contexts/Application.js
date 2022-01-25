@@ -212,7 +212,7 @@ export function useCurrentCurrency() {
 
 export function useTimeframe() {
   const [state, { updateTimeframe }] = useApplicationContext()
-  const activeTimeframe = state?.[TIME_KEY]
+  const activeTimeframe = state?.[`TIME_KEY`]
   return [activeTimeframe, updateTimeframe]
 }
 
@@ -270,15 +270,21 @@ export function useListedTokens() {
   useEffect(() => {
     async function fetchList() {
       const allFetched = await SUPPORTED_LIST_URLS__NO_ENS.reduce(async (fetchedTokens, url) => {
+        const tokensSoFar = await fetchedTokens
         const newTokens = await getTokenList(url)
-        return Promise.resolve([...newTokens.tokens])
+        if (newTokens?.tokens) {
+          return Promise.resolve([...tokensSoFar, ...newTokens.tokens])
+        }
       }, Promise.resolve([]))
       let formatted = allFetched?.map((t) => t.address.toLowerCase())
-
       updateSupportedTokens(formatted)
     }
     if (!supportedTokens) {
-      fetchList()
+      try {
+        fetchList()
+      } catch {
+        console.log('Error fetching')
+      }
     }
   }, [updateSupportedTokens, supportedTokens])
 

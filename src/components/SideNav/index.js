@@ -22,6 +22,7 @@ const Wrapper = styled.div`
   top: 0px;
   z-index: 9999;
   box-sizing: border-box;
+  /* background-color: #1b1c22; */
   background: linear-gradient(193.68deg, #1b1c22 0.68%, #000000 100.48%);
   color: ${({ theme }) => theme.bg2};
 
@@ -163,17 +164,27 @@ function SideNav({ history }) {
           </AutoColumn>
           <AutoColumn gap="0.5rem" style={{ marginLeft: '.75rem', marginBottom: '4rem' }}>
             <HeaderText>
-              <Link href="https://likeswap.org/" target="_blank">
-                Likeswapswap
+              <Link href="https://app.likeswap.org/" target="_blank">
+                Exchange
+              </Link>
+            </HeaderText>
+			<HeaderText>
+              <Link href="https://likeswap.org/farms" target="_blank">
+                Farms
+              </Link>
+            </HeaderText>
+			 <HeaderText>
+              <Link href="https://likeswap.org/pools" target="_blank">
+                Pools
               </Link>
             </HeaderText>
             <HeaderText>
-              <Link href="https://docs.likeswap.org/" target="_blank">
+              <Link href="https://docs.likeswap.org" target="_blank">
                 Docs
               </Link>
             </HeaderText>
             <HeaderText>
-              <Link href="https://twitter.com/likeswaporg " target="_blank">
+              <Link href="https://twitter.com/LikeswapOrg" target="_blank">
                 Twitter
               </Link>
             </HeaderText>

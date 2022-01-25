@@ -4,8 +4,10 @@ import dayjs from 'dayjs'
 import { getShareValueOverTime } from '.'
 
 export const priceOverrides = [
-  '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48', // USDC
-  '0x6b175474e89094c44da98b954eedeac495271d0f', // DAI
+  '0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d', // USDC
+  '0x1af3f329e8be154074d8769d1ffa4ee058b1dbc3', // DAI
+  '0xe9e7cea3dedca5984780bafc599bd69add087d56', //BUSD
+  '0x55d398326f99059ff775485246999027b3197955', //USDT
 ]
 
 interface ReturnMetrics {
@@ -39,10 +41,10 @@ function formatPricesForEarlyTimestamps(position): Position {
       position.token1PriceUSD = 1
     }
     // WETH price
-    if (position.pair?.token0.id === '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2') {
+    if (position.pair?.token0.id === '0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c') {
       position.token0PriceUSD = 203
     }
-    if (position.pair?.token1.id === '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2') {
+    if (position.pair?.token1.id === '0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c') {
       position.token1PriceUSD = 203
     }
   }
@@ -74,8 +76,8 @@ async function getPrincipalForUserPerPair(user: string, pairAddress: string) {
     } else {
       usd += parseFloat(mint.amountUSD)
     }
-    amount0 += amount0 + parseFloat(mint.amount0)
-    amount1 += amount1 + parseFloat(mint.amount1)
+    amount0 += parseFloat(mint.amount0)
+    amount1 += parseFloat(mint.amount1)
   }
 
   for (const index in results.data.burns) {
@@ -89,11 +91,11 @@ async function getPrincipalForUserPerPair(user: string, pairAddress: string) {
     } else if (priceOverrides.includes(burnToken1) && burn.timestamp < PRICE_DISCOVERY_START_TIMESTAMP) {
       usd += parseFloat(burn.amount1) * 2
     } else {
-      usd -= parseFloat(results.data.burns[index].amountUSD)
+      usd -= parseFloat(burn.amountUSD)
     }
 
-    amount0 -= parseFloat(results.data.burns[index].amount0)
-    amount1 -= parseFloat(results.data.burns[index].amount1)
+    amount0 -= parseFloat(burn.amount0)
+    amount1 -= parseFloat(burn.amount1)
   }
 
   return { usd, amount0, amount1 }
@@ -188,8 +190,8 @@ export async function getHistoricalPairReturns(startDateTimestamp, currentPairDa
 
   const shareValues = await getShareValueOverTime(currentPairData.id, dayTimestamps)
   const shareValuesFormatted = {}
-  shareValues?.map((share) => {
-    shareValuesFormatted[share.timestamp] = share
+  shareValues.map((share) => {
+    return (shareValuesFormatted[share.timestamp] = share)
   })
 
   // set the default position and data
@@ -247,4 +249,60 @@ export async function getHistoricalPairReturns(startDateTimestamp, currentPairDa
   }
 
   return formattedHistory
+}
+
+/**
+ * For a given pair and user, get the return metrics
+ * @param user
+ * @param pair
+ * @param ethPrice
+ */
+export async function getLPReturnsOnPair(user: string, pair, ethPrice: number, snapshots) {
+  // initialize values
+  const principal = await getPrincipalForUserPerPair(user, pair.id)
+  let hodlReturn = 0
+  let netReturn = 0
+  let likeswapReturn = 0
+  let fees = 0
+
+  snapshots = snapshots.filter((entry) => {
+    return entry.pair.id === pair.id
+  })
+
+  // get data about the current position
+  const currentPosition: Position = {
+    pair,
+    liquidityTokenBalance: snapshots[snapshots.length - 1]?.liquidityTokenBalance,
+    liquidityTokenTotalSupply: pair.totalSupply,
+    reserve0: pair.reserve0,
+    reserve1: pair.reserve1,
+    reserveUSD: pair.reserveUSD,
+    token0PriceUSD: pair.token0.derivedETH * ethPrice,
+    token1PriceUSD: pair.token1.derivedETH * ethPrice,
+  }
+
+  for (const index in snapshots) {
+    // get positions at both bounds of the window
+    const positionT0 = snapshots[index]
+    const positionT1 = parseInt(index) === snapshots.length - 1 ? currentPosition : snapshots[parseInt(index) + 1]
+
+    const results = getMetricsForPositionWindow(positionT0, positionT1)
+    hodlReturn = hodlReturn + results.hodleReturn
+    netReturn = netReturn + results.netReturn
+    likeswapReturn = likeswapReturn + results.likeswapReturn
+    fees = fees + results.fees
+  }
+
+  return {
+    principal,
+    net: {
+      return: netReturn,
+    },
+    likeswap: {
+      return: likeswapReturn,
+    },
+    fees: {
+      sum: fees,
+    },
+  }
 }

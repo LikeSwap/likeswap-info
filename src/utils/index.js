@@ -42,14 +42,14 @@ export function getPoolLink(token0Address, token1Address = null, remove = false)
     return (
       `https://app.likeswap.org/#/` +
       (remove ? `remove` : `add`) +
-      `/${token0Address === '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2' ? 'ETH' : token0Address}/${'ETH'}`
+      `/${token0Address === '0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c' ? 'ETH' : token0Address}/${'ETH'}`
     )
   } else {
     return (
       `https://app.likeswap.org/#/` +
       (remove ? `remove` : `add`) +
-      `/${token0Address === '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2' ? 'ETH' : token0Address}/${
-        token1Address === '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2' ? 'ETH' : token1Address
+      `/${token0Address === '0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c' ? 'ETH' : token0Address}/${
+        token1Address === '0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c' ? 'ETH' : token1Address
       }`
     )
   }
@@ -60,8 +60,8 @@ export function getSwapLink(token0Address, token1Address = null) {
     return `https://app.likeswap.org/#/swap?inputCurrency=${token0Address}`
   } else {
     return `https://app.likeswap.org/#/swap?inputCurrency=${
-      token0Address === '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2' ? 'ETH' : token0Address
-    }&outputCurrency=${token1Address === '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2' ? 'ETH' : token1Address}`
+      token0Address === '0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c' ? 'ETH' : token0Address
+    }&outputCurrency=${token1Address === '0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c' ? 'ETH' : token1Address}`
   }
 }
 
@@ -82,14 +82,18 @@ export function localNumber(val) {
   return Numeral(val).format('0,0')
 }
 
-export const getUtcCurrentTime = () => {
-  return dayjs.unix(1640070119)
-  // return dayjs.unix(Math.round(new Date().getTime() / 1000).toString())
-}
-
 export const toNiceDate = (date) => {
   let x = dayjs.utc(dayjs.unix(date)).format('MMM DD')
   return x
+}
+
+// shorten the checksummed version of the input address to have 0x + 4 characters at start and end
+export function shortenAddress(address, chars = 4) {
+  const parsed = isAddress(address)
+  if (!parsed) {
+    throw Error(`Invalid 'address' parameter '${address}'.`)
+  }
+  return `${parsed.substring(0, chars + 2)}...${parsed.substring(42 - chars)}`
 }
 
 export const toWeeklyDate = (date) => {
@@ -103,7 +107,7 @@ export const toWeeklyDate = (date) => {
 }
 
 export function getTimestampsForChanges() {
-  const utcCurrentTime = getUtcCurrentTime()
+  const utcCurrentTime = dayjs()
   const t1 = utcCurrentTime.subtract(1, 'day').startOf('minute').unix()
   const t2 = utcCurrentTime.subtract(2, 'day').startOf('minute').unix()
   const tWeek = utcCurrentTime.subtract(1, 'week').startOf('minute').unix()
@@ -184,27 +188,27 @@ export async function getBlocksFromTimestamps(timestamps, skipCount = 500) {
   return blocks
 }
 
-export async function getLiquidityTokenBalanceOvertime(account, timestamps) {
-  // get blocks based on timestamps
-  const blocks = await getBlocksFromTimestamps(timestamps)
+// export async function getLiquidityTokenBalanceOvertime(account, timestamps) {
+//   // get blocks based on timestamps
+//   const blocks = await getBlocksFromTimestamps(timestamps)
 
-  // get historical share values with time travel queries
-  let result = await client.query({
-    query: SHARE_VALUE(account, blocks),
-    fetchPolicy: 'cache-first',
-  })
+//   // get historical share values with time travel queries
+//   let result = await client.query({
+//     query: SHARE_VALUE(account, blocks),
+//     fetchPolicy: 'cache-first',
+//   })
 
-  let values = []
-  for (var row in result?.data) {
-    let timestamp = row.split('t')[1]
-    if (timestamp) {
-      values.push({
-        timestamp,
-        balance: 0,
-      })
-    }
-  }
-}
+//   let values = []
+//   for (var row in result?.data) {
+//     let timestamp = row.split('t')[1]
+//     if (timestamp) {
+//       values.push({
+//         timestamp,
+//         balance: 0,
+//       })
+//     }
+//   }
+// }
 
 /**
  * @notice Example query using time travel queries
@@ -214,7 +218,7 @@ export async function getLiquidityTokenBalanceOvertime(account, timestamps) {
  */
 export async function getShareValueOverTime(pairAddress, timestamps) {
   if (!timestamps) {
-    const utcCurrentTime = getUtcCurrentTime()
+    const utcCurrentTime = dayjs()
     const utcSevenDaysBack = utcCurrentTime.subtract(8, 'day').unix()
     timestamps = getTimestampRange(utcSevenDaysBack, 86400, 7)
   }
@@ -300,13 +304,13 @@ export const Big = (number) => new BigNumber(number)
 
 export const urls = {
   showTransaction: (tx) => `https://bscscan.com/tx/${tx}/`,
-  showAddress: (address) => `https://bscscan.com/address/${address}/`,
-  showToken: (address) => `https://bscscan.com/token/${address}/`,
+  showAddress: (address) => `https://www.bscscan.com/address/${address}/`,
+  showToken: (address) => `https://www.bscscan.com/token/${address}/`,
   showBlock: (block) => `https://bscscan.com/block/${block}/`,
 }
 
 export const formatTime = (unix) => {
-  const now = getUtcCurrentTime()
+  const now = dayjs()
   const timestamp = dayjs.unix(unix)
 
   const inSeconds = now.diff(timestamp, 'second')
@@ -331,7 +335,7 @@ export const formatNumber = (num) => {
 
 // using a currency library here in case we want to add more in future
 export const formatDollarAmount = (num, digits) => {
-  const formatter = new Intl.NumberFormat('en-US', {
+  const formatter = new Intl.NumberFormat([], {
     style: 'currency',
     currency: 'USD',
     minimumFractionDigits: digits,
@@ -346,13 +350,13 @@ export const toSignificant = (number, significantDigits) => {
   return updated.toFormat(updated.decimalPlaces(), { groupSeparator: '' })
 }
 
-export const formattedNum = (number, usd = false, acceptNegatives = true) => {
+export const formattedNum = (number, usd = false, acceptNegatives = false) => {
   if (isNaN(number) || number === '' || number === undefined) {
     return usd ? '$0' : 0
   }
   let num = parseFloat(number)
 
-  if (acceptNegatives && num > 500000000) {
+  if (num > 500000000) {
     return (usd ? '$' : '') + toK(num.toFixed(0), true)
   }
 
@@ -379,7 +383,7 @@ export const formattedNum = (number, usd = false, acceptNegatives = true) => {
     }
   }
 
-  return Number(parseFloat(num).toFixed(5)).toLocaleString()
+  return Number(parseFloat(num).toFixed(4)).toString()
 }
 
 export function rawPercent(percentRaw) {

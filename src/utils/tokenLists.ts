@@ -1,4 +1,6 @@
 import { TokenList } from '@likeswap/token-lists'
+import schema from '@likeswap/token-lists/src/tokenlist.schema.json'
+import Ajv from 'ajv'
 
 /**
  * Given a URI that may be ipfs, ipns, http, or https protocol, return the fetch-able http(s) URLs for the same content
@@ -22,6 +24,8 @@ function uriToHttp(uri: string): string[] {
   }
 }
 
+const tokenListValidator = new Ajv({ allErrors: true }).compile(schema)
+
 /**
  * Contains the logic for resolving a list URL to a validated token list
  * @param listUrl list url
@@ -36,7 +40,7 @@ export default async function getTokenList(listUrl: string): Promise<TokenList> 
       response = await fetch(url)
     } catch (error) {
       console.debug('Failed to fetch list', listUrl, error)
-      if (isLast) throw new Error(`Failed to download list ${listUrl}`)
+
       continue
     }
 
@@ -46,7 +50,15 @@ export default async function getTokenList(listUrl: string): Promise<TokenList> 
     }
 
     const json = await response.json()
+    if (!tokenListValidator(json)) {
+      const validationErrors: string =
+        tokenListValidator.errors?.reduce<string>((memo, error) => {
+          const add = `${error.dataPath} ${error.message ?? ''}`
+          return memo.length > 0 ? `${memo}; ${add}` : `${add}`
+        }, '') ?? 'unknown error'
+      throw new Error(`Token list failed validation: ${validationErrors}`)
+    }
     return json
   }
-  throw new Error('Unrecognized list URL protocol.')
+  // throw new Error('Unrecognized list URL protocol.')
 }

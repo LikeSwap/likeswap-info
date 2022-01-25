@@ -5,10 +5,10 @@ import {
   TOKEN_DATA,
   FILTERED_TRANSACTIONS,
   TOKEN_CHART,
-  TOKENS_CURRENT,
-  TOKENS_DYNAMIC,
+  TOKEN_TOP_DAY_DATAS,
   PRICES_BY_BLOCK,
   PAIR_DATA,
+  TOKENS_HISTORICAL_BULK,
 } from '../apollo/queries'
 
 import { useEthPrice } from './GlobalData'
@@ -23,7 +23,6 @@ import {
   isAddress,
   getBlocksFromTimestamps,
   splitQuery,
-  getUtcCurrentTime,
 } from '../utils'
 import { timeframeOptions } from '../constants'
 import { useLatestBlocks } from './Application'
@@ -35,6 +34,7 @@ const UPDATE_CHART_DATA = 'UPDATE_CHART_DATA'
 const UPDATE_PRICE_DATA = 'UPDATE_PRICE_DATA'
 const UPDATE_TOP_TOKENS = ' UPDATE_TOP_TOKENS'
 const UPDATE_ALL_PAIRS = 'UPDATE_ALL_PAIRS'
+const UPDATE_COMBINED = 'UPDATE_COMBINED'
 
 const TOKEN_PAIRS_KEY = 'TOKEN_PAIRS_KEY'
 
@@ -42,7 +42,7 @@ dayjs.extend(utc)
 
 const TokenDataContext = createContext()
 
-function useTokenDataContext() {
+export function useTokenDataContext() {
   return useContext(TokenDataContext)
 }
 
@@ -68,6 +68,14 @@ function reducer(state, { type, payload }) {
       return {
         ...state,
         ...added,
+      }
+    }
+
+    case UPDATE_COMBINED: {
+      const { combinedVol } = payload
+      return {
+        ...state,
+        combinedVol,
       }
     }
 
@@ -143,6 +151,15 @@ export default function Provider({ children }) {
     })
   }, [])
 
+  const updateCombinedVolume = useCallback((combinedVol) => {
+    dispatch({
+      type: UPDATE_COMBINED,
+      payload: {
+        combinedVol,
+      },
+    })
+  }, [])
+
   const updateTokenTxns = useCallback((address, transactions) => {
     dispatch({
       type: UPDATE_TOKEN_TXNS,
@@ -183,9 +200,19 @@ export default function Provider({ children }) {
             updateTopTokens,
             updateAllPairs,
             updatePriceData,
+            updateCombinedVolume,
           },
         ],
-        [state, update, updateTokenTxns, updateChartData, updateTopTokens, updateAllPairs, updatePriceData]
+        [
+          state,
+          update,
+          updateTokenTxns,
+          updateCombinedVolume,
+          updateChartData,
+          updateTopTokens,
+          updateAllPairs,
+          updatePriceData,
+        ]
       )}
     >
       {children}
@@ -194,25 +221,39 @@ export default function Provider({ children }) {
 }
 
 const getTopTokens = async (ethPrice, ethPriceOld) => {
-  const utcCurrentTime = getUtcCurrentTime()
+  const utcCurrentTime = dayjs()
   const utcOneDayBack = utcCurrentTime.subtract(1, 'day').unix()
   const utcTwoDaysBack = utcCurrentTime.subtract(2, 'day').unix()
   let oneDayBlock = await getBlockFromTimestamp(utcOneDayBack)
   let twoDayBlock = await getBlockFromTimestamp(utcTwoDaysBack)
 
   try {
+    // need to get the top tokens by liquidity by need token day datas
+    const currentDate = parseInt(Date.now() / 86400 / 1000) * 86400 - 86400
+
+    let tokenids = await client.query({
+      query: TOKEN_TOP_DAY_DATAS,
+      fetchPolicy: 'network-only',
+      variables: { date: currentDate },
+    })
+
+    const ids = tokenids?.data?.tokenDayDatas?.reduce((accum, entry) => {
+      accum.push(entry.id.slice(0, 42))
+      return accum
+    }, [])
+
     let current = await client.query({
-      query: TOKENS_CURRENT,
+      query: TOKENS_HISTORICAL_BULK(ids),
       fetchPolicy: 'cache-first',
     })
 
     let oneDayResult = await client.query({
-      query: TOKENS_DYNAMIC(oneDayBlock),
+      query: TOKENS_HISTORICAL_BULK(ids, oneDayBlock),
       fetchPolicy: 'cache-first',
     })
 
     let twoDayResult = await client.query({
-      query: TOKENS_DYNAMIC(twoDayBlock),
+      query: TOKENS_HISTORICAL_BULK(ids, twoDayBlock),
       fetchPolicy: 'cache-first',
     })
 
@@ -306,6 +347,10 @@ const getTopTokens = async (ethPrice, ethPriceOld) => {
             data.priceChangeUSD = 0
           }
 
+          // used for custom adjustments
+          data.oneDayData = oneDayHistory
+          data.twoDayData = twoDayHistory
+
           return data
         })
     )
@@ -319,7 +364,7 @@ const getTopTokens = async (ethPrice, ethPriceOld) => {
 }
 
 const getTokenData = async (address, ethPrice, ethPriceOld) => {
-  const utcCurrentTime = getUtcCurrentTime()
+  const utcCurrentTime = dayjs()
   const utcOneDayBack = utcCurrentTime.subtract(1, 'day').startOf('minute').unix()
   const utcTwoDaysBack = utcCurrentTime.subtract(2, 'day').startOf('minute').unix()
   let oneDayBlock = await getBlockFromTimestamp(utcOneDayBack)
@@ -409,6 +454,10 @@ const getTokenData = async (address, ethPrice, ethPriceOld) => {
     data.liquidityChangeUSD = liquidityChangeUSD
     data.oneDayTxns = oneDayTxns
     data.txnChange = txnChange
+
+    // used for custom adjustments
+    data.oneDayData = oneDayData?.[address]
+    data.twoDayData = twoDayData?.[address]
 
     // new tokens
     if (!oneDayData && data) {
@@ -587,6 +636,7 @@ const getTokenChartData = async (tokenAddress) => {
     let timestamp = data[0] && data[0].date ? data[0].date : startTime
     let latestLiquidityUSD = data[0] && data[0].totalLiquidityUSD
     let latestPriceUSD = data[0] && data[0].priceUSD
+    let latestPairDatas = data[0] && data[0].mostLiquidPairs
     let index = 1
     while (timestamp < utcEndTime.startOf('minute').unix() - oneDay) {
       const nextDay = timestamp + oneDay
@@ -598,10 +648,12 @@ const getTokenChartData = async (tokenAddress) => {
           dailyVolumeUSD: 0,
           priceUSD: latestPriceUSD,
           totalLiquidityUSD: latestLiquidityUSD,
+          mostLiquidPairs: latestPairDatas,
         })
       } else {
         latestLiquidityUSD = dayIndexArray[index].totalLiquidityUSD
         latestPriceUSD = dayIndexArray[index].priceUSD
+        latestPairDatas = dayIndexArray[index].mostLiquidPairs
         index = index + 1
       }
       timestamp = nextDay
@@ -684,6 +736,98 @@ export function useTokenPairs(tokenAddress) {
   return tokenPairs || []
 }
 
+export function useTokenDataCombined(tokenAddresses) {
+  const [state, { updateCombinedVolume }] = useTokenDataContext()
+  const [ethPrice, ethPriceOld] = useEthPrice()
+
+  const volume = state?.combinedVol
+
+  useEffect(() => {
+    async function fetchDatas() {
+      Promise.all(
+        tokenAddresses.map(async (address) => {
+          return await getTokenData(address, ethPrice, ethPriceOld)
+        })
+      )
+        .then((res) => {
+          if (res) {
+            const newVolume = res
+              ? res?.reduce(function (acc, entry) {
+                  acc = acc + parseFloat(entry.oneDayVolumeUSD)
+                  return acc
+                }, 0)
+              : 0
+            updateCombinedVolume(newVolume)
+          }
+        })
+        .catch(() => {
+          console.log('error fetching combined data')
+        })
+    }
+    if (!volume && ethPrice && ethPriceOld) {
+      fetchDatas()
+    }
+  }, [tokenAddresses, ethPrice, ethPriceOld, volume, updateCombinedVolume])
+
+  return volume
+}
+
+export function useTokenChartDataCombined(tokenAddresses) {
+  const [state, { updateChartData }] = useTokenDataContext()
+
+  const datas = useMemo(() => {
+    return (
+      tokenAddresses &&
+      tokenAddresses.reduce(function (acc, address) {
+        acc[address] = state?.[address]?.chartData
+        return acc
+      }, {})
+    )
+  }, [state, tokenAddresses])
+
+  const isMissingData = useMemo(() => Object.values(datas).filter((val) => !val).length > 0, [datas])
+
+  const formattedByDate = useMemo(() => {
+    return (
+      datas &&
+      !isMissingData &&
+      Object.keys(datas).map(function (address) {
+        const dayDatas = datas[address]
+        return dayDatas?.reduce(function (acc, dayData) {
+          acc[dayData.date] = dayData
+          return acc
+        }, {})
+      }, {})
+    )
+  }, [datas, isMissingData])
+
+  useEffect(() => {
+    async function fetchDatas() {
+      Promise.all(
+        tokenAddresses.map(async (address) => {
+          return await getTokenChartData(address)
+        })
+      )
+        .then((res) => {
+          res &&
+            res.map((result, i) => {
+              const tokenAddress = tokenAddresses[i]
+              updateChartData(tokenAddress, result)
+              return true
+            })
+        })
+        .catch(() => {
+          console.log('error fetching combined data')
+        })
+    }
+    if (isMissingData) {
+      fetchDatas()
+    }
+  }, [isMissingData, tokenAddresses, updateChartData])
+
+  return formattedByDate
+}
+
 export function useTokenChartData(tokenAddress) {
   const [state, { updateChartData }] = useTokenDataContext()
   const chartData = state?.[tokenAddress]?.chartData
@@ -731,5 +875,12 @@ export function useTokenPriceData(tokenAddress, timeWindow, interval = 3600) {
 
 export function useAllTokenData() {
   const [state] = useTokenDataContext()
-  return state
+
+  // filter out for only addresses
+  return Object.keys(state)
+    .filter((key) => key !== 'combinedVol')
+    .reduce((res, key) => {
+      res[key] = state[key]
+      return res
+    }, {})
 }

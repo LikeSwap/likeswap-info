@@ -24,7 +24,7 @@ import {
   getTimestampsForChanges,
   splitQuery,
 } from '../utils'
-import { timeframeOptions } from '../constants'
+import { timeframeOptions, TRACKED_OVERRIDES_PAIRS, TRACKED_OVERRIDES_TOKENS } from '../constants'
 import { useLatestBlocks } from './Application'
 import { updateNameData } from '../utils/data'
 
@@ -256,6 +256,8 @@ async function getBulkPairData(pairList, ethPrice) {
 }
 
 function parseData(data, oneDayData, twoDayData, oneWeekData, ethPrice, oneDayBlock) {
+  const pairAddress = data.id
+
   // get volume changes
   const [oneDayVolumeUSD, volumeChangeUSD] = get2DayPercentChange(
     data?.volumeUSD,
@@ -267,16 +269,22 @@ function parseData(data, oneDayData, twoDayData, oneWeekData, ethPrice, oneDayBl
     oneDayData?.untrackedVolumeUSD ? parseFloat(oneDayData?.untrackedVolumeUSD) : 0,
     twoDayData?.untrackedVolumeUSD ? twoDayData?.untrackedVolumeUSD : 0
   )
+
   const oneWeekVolumeUSD = parseFloat(oneWeekData ? data?.volumeUSD - oneWeekData?.volumeUSD : data.volumeUSD)
+
+  const oneWeekVolumeUntracked = parseFloat(
+    oneWeekData ? data?.untrackedVolumeUSD - oneWeekData?.untrackedVolumeUSD : data.untrackedVolumeUSD
+  )
 
   // set volume properties
   data.oneDayVolumeUSD = parseFloat(oneDayVolumeUSD)
   data.oneWeekVolumeUSD = oneWeekVolumeUSD
   data.volumeChangeUSD = volumeChangeUSD
   data.oneDayVolumeUntracked = oneDayVolumeUntracked
+  data.oneWeekVolumeUntracked = oneWeekVolumeUntracked
   data.volumeChangeUntracked = volumeChangeUntracked
 
-  // set liquiditry properties
+  // set liquidity properties
   data.trackedReserveUSD = data.trackedReserveETH * ethPrice
   data.liquidityChangeUSD = getPercentChange(data.reserveUSD, oneDayData?.reserveUSD)
 
@@ -289,6 +297,17 @@ function parseData(data, oneDayData, twoDayData, oneWeekData, ethPrice, oneDayBl
   }
   if (!oneWeekData && data) {
     data.oneWeekVolumeUSD = parseFloat(data.volumeUSD)
+  }
+
+  if (
+    TRACKED_OVERRIDES_PAIRS.includes(pairAddress) ||
+    TRACKED_OVERRIDES_TOKENS.includes(data.token0.id) ||
+    TRACKED_OVERRIDES_TOKENS.includes(data.token1.id)
+  ) {
+    data.oneDayVolumeUSD = oneDayVolumeUntracked
+    data.oneWeekVolumeUSD = oneWeekVolumeUntracked
+    data.volumeChangeUSD = volumeChangeUntracked
+    data.trackedReserveUSD = data.reserveUSD
   }
 
   // format incorrect names
@@ -620,6 +639,9 @@ export function usePairChartData(pairAddress) {
   return chartData
 }
 
+/**
+ * Get list of all pairs in Likeswap
+ */
 export function useAllPairData() {
   const [state] = usePairDataContext()
   return state || {}

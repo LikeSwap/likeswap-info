@@ -41,7 +41,7 @@ const CHART_VIEW = {
 const PairChart = ({ address, color, base0, base1 }) => {
   const [chartFilter, setChartFilter] = useState(CHART_VIEW.LIQUIDITY)
 
-  const [timeWindow, setTimeWindow] = useState(timeframeOptions.ALL_TIME)
+  const [timeWindow, setTimeWindow] = useState(timeframeOptions.MONTH)
 
   const [darkMode] = useDarkModeManager()
   const textColor = darkMode ? 'white' : 'black'

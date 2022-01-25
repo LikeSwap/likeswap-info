@@ -9,10 +9,19 @@ import {
   getBlocksFromTimestamps,
   get2DayPercentChange,
   getTimeframe,
-  getUtcCurrentTime,
 } from '../utils'
-import { GLOBAL_DATA, GLOBAL_TXNS, GLOBAL_CHART, ETH_PRICE, ALL_PAIRS, ALL_TOKENS } from '../apollo/queries'
+import {
+  GLOBAL_DATA,
+  GLOBAL_TXNS,
+  GLOBAL_CHART,
+  ETH_PRICE,
+  ALL_PAIRS,
+  ALL_TOKENS,
+  TOP_LPS_PER_PAIRS,
+} from '../apollo/queries'
 import weekOfYear from 'dayjs/plugin/weekOfYear'
+import { useAllPairData } from './PairData'
+import { useTokenChartDataCombined } from './TokenData'
 const UPDATE = 'UPDATE'
 const UPDATE_TXNS = 'UPDATE_TXNS'
 const UPDATE_CHART = 'UPDATE_CHART'
@@ -21,6 +30,14 @@ const ETH_PRICE_KEY = 'ETH_PRICE_KEY'
 const UPDATE_ALL_PAIRS_IN_LIKESWAP = 'UPDAUPDATE_ALL_PAIRS_IN_LIKESWAPTE_TOP_PAIRS'
 const UPDATE_ALL_TOKENS_IN_LIKESWAP = 'UPDATE_ALL_TOKENS_IN_LIKESWAP'
 const UPDATE_TOP_LPS = 'UPDATE_TOP_LPS'
+
+const offsetVolumes = [
+  '0x9ea3b5b4ec044b70375236a281986106457b20ef',
+  '0x05934eba98486693aaec2d00b0e9ce918e37dc3f',
+  '0x3d7e683fc9c86b4d653c9e47ca12517440fad14e',
+  '0xfae9c647ad7d89e738aba720acf09af93dc535f7',
+  '0x7296368fe9bcb25d3ecc19af13655b907818cc09',
+]
 
 // format dayjs with the libraries that we need
 dayjs.extend(utc)
@@ -202,6 +219,7 @@ export default function Provider({ children }) {
  * @param {*} ethPrice
  * @param {*} oldEthPrice
  */
+
 async function getGlobalData(ethPrice, oldEthPrice) {
   // data for each day , historic data used for % changes
   let data = {}
@@ -210,7 +228,7 @@ async function getGlobalData(ethPrice, oldEthPrice) {
 
   try {
     // get timestamps for the days
-    const utcCurrentTime = getUtcCurrentTime()
+    const utcCurrentTime = dayjs()
     const utcOneDayBack = utcCurrentTime.subtract(1, 'day').unix()
     const utcTwoDaysBack = utcCurrentTime.subtract(2, 'day').unix()
     const utcOneWeekBack = utcCurrentTime.subtract(1, 'week').unix()
@@ -259,8 +277,8 @@ async function getGlobalData(ethPrice, oldEthPrice) {
     if (data && oneDayData && twoDayData && twoWeekData) {
       let [oneDayVolumeUSD, volumeChangeUSD] = get2DayPercentChange(
         data.totalVolumeUSD,
-        oneDayData.totalVolumeUSD ? oneDayData.totalVolumeUSD : 0,
-        twoDayData.totalVolumeUSD ? twoDayData.totalVolumeUSD : 0
+        oneDayData.totalVolumeUSD,
+        twoDayData.totalVolumeUSD
       )
 
       const [oneWeekVolume, weeklyVolumeChange] = get2DayPercentChange(
@@ -303,7 +321,10 @@ async function getGlobalData(ethPrice, oldEthPrice) {
  * on main page
  * @param {*} oldestDateToFetch // start of window to fetch from
  */
-const getChartData = async (oldestDateToFetch) => {
+
+let checked = false
+
+const getChartData = async (oldestDateToFetch, offsetData) => {
   let data = []
   let weeklyData = []
   const utcEndTime = dayjs.utc()
@@ -348,6 +369,7 @@ const getChartData = async (oldestDateToFetch) => {
       while (timestamp < utcEndTime.unix() - oneDay) {
         const nextDay = timestamp + oneDay
         let currentDayIndex = (nextDay / oneDay).toFixed(0)
+
         if (!dayIndexSet.has(currentDayIndex)) {
           data.push({
             date: nextDay,
@@ -368,7 +390,20 @@ const getChartData = async (oldestDateToFetch) => {
     data = data.sort((a, b) => (parseInt(a.date) > parseInt(b.date) ? 1 : -1))
     let startIndexWeekly = -1
     let currentWeek = -1
+
     data.forEach((entry, i) => {
+      const date = data[i].date
+
+      // hardcoded fix for offset volume
+      offsetData &&
+        !checked &&
+        offsetData.map((dayData) => {
+          if (dayData[date]) {
+            data[i].dailyVolumeUSD = parseFloat(data[i].dailyVolumeUSD) - parseFloat(dayData[date].dailyVolumeUSD)
+          }
+          return true
+        })
+
       const week = dayjs.utc(dayjs.unix(data[i].date)).week()
       if (week !== currentWeek) {
         currentWeek = week
@@ -379,6 +414,10 @@ const getChartData = async (oldestDateToFetch) => {
       weeklyData[startIndexWeekly].weeklyVolumeUSD =
         (weeklyData[startIndexWeekly].weeklyVolumeUSD ?? 0) + data[i].dailyVolumeUSD
     })
+
+    if (!checked) {
+      checked = true
+    }
   } catch (e) {
     console.log(e)
   }
@@ -429,7 +468,7 @@ const getGlobalTransactions = async () => {
  * Gets the current price  of ETH, 24 hour price, and % change between them
  */
 const getEthPrice = async () => {
-  const utcCurrentTime = getUtcCurrentTime()
+  const utcCurrentTime = dayjs()
   const utcOneDayBack = utcCurrentTime.subtract(1, 'day').startOf('minute').unix()
 
   let ethPrice = 0
@@ -458,24 +497,20 @@ const getEthPrice = async () => {
   return [ethPrice, ethPriceOneDay, priceChangeETH]
 }
 
-const PAIRS_TO_FETCH = 100
-const TOKENS_TO_FETCH = 100
+const PAIRS_TO_FETCH = 500
+const TOKENS_TO_FETCH = 500
 
 /**
  * Loop through every pair on likeswap, used for search
  */
 async function getAllPairsOnLikeswap() {
-  const utcCurrentTime = dayjs.unix(1614556800)
-  const utcOneHourBack = utcCurrentTime.subtract(3, 'day').startOf('minute').unix()
-  let oneHourBlock = await getBlockFromTimestamp(utcOneHourBack)
-
   try {
     let allFound = false
     let pairs = []
     let skipCount = 0
     while (!allFound) {
       let result = await client.query({
-        query: ALL_PAIRS(oneHourBlock),
+        query: ALL_PAIRS,
         variables: {
           skip: skipCount,
         },
@@ -529,9 +564,13 @@ export function useGlobalData() {
   const [ethPrice, oldEthPrice] = useEthPrice()
 
   const data = state?.globalData
+
+  // const combinedVolume = useTokenDataCombined(offsetVolumes)
+
   useEffect(() => {
     async function fetchData() {
       let globalData = await getGlobalData(ethPrice, oldEthPrice)
+
       globalData && update(globalData)
 
       let allPairs = await getAllPairsOnLikeswap()
@@ -570,19 +609,23 @@ export function useGlobalChartData() {
     }
   }, [activeWindow, oldestDateFetch])
 
+  // fix for rebass tokens
+
+  const combinedData = useTokenChartDataCombined(offsetVolumes)
+
   /**
    * Fetch data if none fetched or older data is needed
    */
   useEffect(() => {
     async function fetchData() {
       // historical stuff for chart
-      let [newChartData, newWeeklyData] = await getChartData(oldestDateFetch)
+      let [newChartData, newWeeklyData] = await getChartData(oldestDateFetch, combinedData)
       updateChart(newChartData, newWeeklyData)
     }
-    if (oldestDateFetch && !(chartDataDaily && chartDataWeekly)) {
+    if (oldestDateFetch && !(chartDataDaily && chartDataWeekly) && combinedData) {
       fetchData()
     }
-  }, [chartDataDaily, chartDataWeekly, oldestDateFetch, updateChart])
+  }, [chartDataDaily, chartDataWeekly, combinedData, oldestDateFetch, updateChart])
 
   return [chartDataDaily, chartDataWeekly]
 }
@@ -631,4 +674,73 @@ export function useAllTokensInLikeswap() {
   let allTokens = state?.allTokens
 
   return allTokens || []
+}
+
+/**
+ * Get the top liquidity positions based on USD size
+ * @TODO Not a perfect lookup needs improvement
+ */
+export function useTopLps() {
+  const [state, { updateTopLps }] = useGlobalDataContext()
+  let topLps = state?.topLps
+
+  const allPairs = useAllPairData()
+
+  useEffect(() => {
+    async function fetchData() {
+      // get top 20 by reserves
+      let topPairs = Object.keys(allPairs)
+        ?.sort((a, b) => parseFloat(allPairs[a].reserveUSD > allPairs[b].reserveUSD ? -1 : 1))
+        ?.slice(0, 99)
+        .map((pair) => pair)
+
+      let topLpLists = await Promise.all(
+        topPairs.map(async (pair) => {
+          // for each one, fetch top LPs
+          try {
+            const { data: results } = await client.query({
+              query: TOP_LPS_PER_PAIRS,
+              variables: {
+                pair: pair.toString(),
+              },
+              fetchPolicy: 'cache-first',
+            })
+            if (results) {
+              return results.liquidityPositions
+            }
+          } catch (e) {}
+        })
+      )
+
+      // get the top lps from the results formatted
+      const topLps = []
+      topLpLists
+        .filter((i) => !!i) // check for ones not fetched correctly
+        .map((list) => {
+          return list.map((entry) => {
+            const pairData = allPairs[entry.pair.id]
+            return topLps.push({
+              user: entry.user,
+              pairName: pairData.token0.symbol + '-' + pairData.token1.symbol,
+              pairAddress: entry.pair.id,
+              token0: pairData.token0.id,
+              token1: pairData.token1.id,
+              usd:
+                (parseFloat(entry.liquidityTokenBalance) / parseFloat(pairData.totalSupply)) *
+                parseFloat(pairData.reserveUSD),
+            })
+          })
+        })
+
+      const sorted = topLps.sort((a, b) => (a.usd > b.usd ? -1 : 1))
+      const shorter = sorted.splice(0, 100)
+      updateTopLps(shorter)
+    }
+
+    if (!topLps && allPairs && Object.keys(allPairs).length > 0) {
+      fetchData()
+    }
+  })
+
+  return topLps
 }

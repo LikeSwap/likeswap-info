@@ -12,7 +12,7 @@ import { Divider } from '..'
 import { formattedNum, formattedPercent } from '../../utils'
 import { useMedia } from 'react-use'
 import { withRouter } from 'react-router-dom'
-import { OVERVIEW_TOKEN_BLACKLIST } from '../../constants'
+import { TOKEN_BLACKLIST } from '../../constants'
 import FormattedName from '../FormattedName'
 import { TYPE } from '../../Theme'
 
@@ -90,8 +90,7 @@ const ClickableText = styled(Text)`
     opacity: 0.6;
   }
   user-select: none;
-  color: ${({ theme }) => theme.text1};
-
+  color: ${({ theme }) => theme.text1} !important;
   @media screen and (max-width: 640px) {
     font-size: 0.85rem;
   }
@@ -100,7 +99,7 @@ const ClickableText = styled(Text)`
 const DataText = styled(Flex)`
   align-items: center;
   text-align: center;
-  color: ${({ theme }) => theme.text1};
+  color: ${({ theme }) => theme.text1} !important;
 
   & > * {
     font-size: 14px;
@@ -114,6 +113,7 @@ const DataText = styled(Flex)`
 const SORT_FIELD = {
   LIQ: 'totalLiquidityUSD',
   VOL: 'oneDayVolumeUSD',
+  VOL_UT: 'oneDayVolumeUT',
   SYMBOL: 'symbol',
   NAME: 'name',
   PRICE: 'priceUSD',
@@ -121,14 +121,14 @@ const SORT_FIELD = {
 }
 
 // @TODO rework into virtualized list
-function TopTokenList({ tokens, itemMax = 10 }) {
+function TopTokenList({ tokens, itemMax = 10, useTracked = false }) {
   // page state
   const [page, setPage] = useState(1)
   const [maxPage, setMaxPage] = useState(1)
 
   // sorting
   const [sortDirection, setSortDirection] = useState(true)
-  const [sortedColumn, setSortedColumn] = useState(SORT_FIELD.LIQ)
+  const [sortedColumn, setSortedColumn] = useState(SORT_FIELD.VOL)
 
   const below1080 = useMedia('(max-width: 1080px)')
   const below680 = useMedia('(max-width: 680px)')
@@ -144,7 +144,7 @@ function TopTokenList({ tokens, itemMax = 10 }) {
       tokens &&
       Object.keys(tokens)
         .filter((key) => {
-          return !OVERVIEW_TOKEN_BLACKLIST.includes(key)
+          return !TOKEN_BLACKLIST.includes(key)
         })
         .map((key) => tokens[key])
     )
@@ -195,11 +195,11 @@ function TopTokenList({ tokens, itemMax = 10 }) {
         </DataText>
         {!below680 && (
           <DataText area="symbol" color="text" fontWeight="500">
-            <FormattedName text={item.symbol.toUpperCase()} maxCharacters={5} />
+            <FormattedName text={item.symbol} maxCharacters={5} />
           </DataText>
         )}
-        <DataText area="liq">{formattedNum(item.totalLiquidityUSD, true, false)}</DataText>
-        <DataText area="vol">{formattedNum(item.oneDayVolumeUSD, true, false)}</DataText>
+        <DataText area="liq">{formattedNum(item.totalLiquidityUSD, true)}</DataText>
+        <DataText area="vol">{formattedNum(item.oneDayVolumeUSD, true)}</DataText>
         {!below1080 && (
           <DataText area="price" color="text" fontWeight="500">
             {formattedNum(item.priceUSD, true)}
@@ -215,7 +215,9 @@ function TopTokenList({ tokens, itemMax = 10 }) {
       <DashGrid center={true} style={{ height: 'fit-content', padding: '0 1.125rem 1rem 1.125rem' }}>
         <Flex alignItems="center" justifyContent="flexStart">
           <ClickableText
+            color="text"
             area="name"
+            fontWeight="500"
             onClick={(e) => {
               setSortedColumn(SORT_FIELD.NAME)
               setSortDirection(sortedColumn !== SORT_FIELD.NAME ? true : !sortDirection)
@@ -228,7 +230,7 @@ function TopTokenList({ tokens, itemMax = 10 }) {
           <Flex alignItems="center">
             <ClickableText
               area="symbol"
-              onClick={(e) => {
+              onClick={() => {
                 setSortedColumn(SORT_FIELD.SYMBOL)
                 setSortDirection(sortedColumn !== SORT_FIELD.SYMBOL ? true : !sortDirection)
               }}
@@ -252,13 +254,15 @@ function TopTokenList({ tokens, itemMax = 10 }) {
         <Flex alignItems="center">
           <ClickableText
             area="vol"
-            onClick={(e) => {
-              setSortedColumn(SORT_FIELD.VOL)
-              setSortDirection(sortedColumn !== SORT_FIELD.VOL ? true : !sortDirection)
+            onClick={() => {
+              setSortedColumn(useTracked ? SORT_FIELD.VOL_UT : SORT_FIELD.VOL)
+              setSortDirection(
+                sortedColumn !== (useTracked ? SORT_FIELD.VOL_UT : SORT_FIELD.VOL) ? true : !sortDirection
+              )
             }}
           >
             Volume (24hrs)
-            {sortedColumn === SORT_FIELD.VOL ? (!sortDirection ? '↑' : '↓') : ''}
+            {sortedColumn === (useTracked ? SORT_FIELD.VOL_UT : SORT_FIELD.VOL) ? (!sortDirection ? '↑' : '↓') : ''}
           </ClickableText>
         </Flex>
         {!below1080 && (
