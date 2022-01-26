@@ -40,7 +40,7 @@ export default function GlobalStats() {
             <TYPE.main
               mr={'1rem'}
               onMouseEnter={() => {
-                setShowPriceCard(true)
+                setShowPriceCard(false)
               }}
               onMouseLeave={() => {
                 setShowPriceCard(false)
