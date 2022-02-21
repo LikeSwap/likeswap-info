@@ -4,7 +4,7 @@ import { RowFixed, RowBetween } from '../Row'
 import { useMedia } from 'react-use'
 import { useGlobalData, useEthPrice } from '../../contexts/GlobalData'
 import { formattedNum, localNumber } from '../../utils'
-
+ // eslint-disable-next-line
 import UniPrice from '../UniPrice'
 import { TYPE } from '../../Theme'
 
@@ -22,13 +22,16 @@ export default function GlobalStats() {
   const below1295 = useMedia('(max-width: 1295px)')
   const below1180 = useMedia('(max-width: 1180px)')
   const below1024 = useMedia('(max-width: 1024px)')
+ // eslint-disable-next-line
   const below400 = useMedia('(max-width: 400px)')
   const below816 = useMedia('(max-width: 816px)')
-
+ // eslint-disable-next-line
   const [showPriceCard, setShowPriceCard] = useState(false)
 
   const { oneDayVolumeUSD, oneDayTxns, pairCount } = useGlobalData()
+	   // eslint-disable-next-line
   const [ethPrice] = useEthPrice()
+	   // eslint-disable-next-line
   const formattedEthPrice = ethPrice ? formattedNum(ethPrice, true) : '-'
   const oneDayFees = oneDayVolumeUSD ? formattedNum(oneDayVolumeUSD * 0.003, true) : ''
 
@@ -36,21 +39,7 @@ export default function GlobalStats() {
     <Header>
       <RowBetween style={{ padding: below816 ? '0.5rem' : '.5rem' }}>
         <RowFixed>
-          {!below400 && (
-            <TYPE.main
-              mr={'1rem'}
-              onMouseEnter={() => {
-                setShowPriceCard(false)
-              }}
-              onMouseLeave={() => {
-                setShowPriceCard(false)
-              }}
-              style={{ position: 'relative' }}
-            >
-              BNB Price: <Medium>{formattedEthPrice}</Medium>
-              {showPriceCard && <UniPrice />}
-            </TYPE.main>
-          )}
+
 
           {!below1180 && (
             <TYPE.main mr={'1rem'}>
